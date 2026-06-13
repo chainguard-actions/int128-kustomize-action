@@ -1,0 +1,53 @@
+name: Test extra-files input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          kustomization: actions/hardened/int128--kustomize-action/v1.182.0/tests/fixtures/kustomize-app/kustomization.yaml
+          extra-files: actions/hardened/int128--kustomize-action/v1.182.0/tests/fixtures/extra-config.yaml
+          base-directory: ${{ github.workspace }}/actions/hardened/int128--kustomize-action/v1.182.0/tests/fixtures
+      - name: Assert directory output is set
+        env:
+          DIRECTORY: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "directory: $DIRECTORY"
+          if [ -z "$DIRECTORY" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert files output is set
+        env:
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          if [ -z "$FILES" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert extra file is present in output directory
+        env:
+          DIRECTORY: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "Checking directory: $DIRECTORY"
+          if [ ! -d "$DIRECTORY" ]; then
+            echo "FAIL: output directory does not exist: $DIRECTORY"
+            exit 1
+          fi
+          echo "Contents:"
+          find "$DIRECTORY" -type f
+          # The extra-config.yaml should have been copied to the output directory
+          extra_count=$(find "$DIRECTORY" -name "extra-config.yaml" | wc -l)
+          echo "Extra config file count: $extra_count"
+          if [ "$extra_count" -lt 1 ]; then
+            echo "FAIL: expected extra-config.yaml to be present in output directory"
+            exit 1
+          fi
+          echo "PASS"
