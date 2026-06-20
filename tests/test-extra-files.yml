@@ -1,0 +1,67 @@
+name: Test extra-files input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: ${{ github.workspace }}/tests/fixtures/overlays/development/kustomization.yaml
+          extra-files: ${{ github.workspace }}/tests/fixtures/extra/metadata.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert files output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert extra file was copied to output directory
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "output directory: $DIR"
+          ls -la "$DIR" || true
+          if [ ! -f "$DIR/metadata.yaml" ]; then
+            echo "FAIL: extra file 'metadata.yaml' was not copied to output directory"
+            exit 1
+          fi
+          echo "PASS: extra file found in output directory"
+
+      - name: Assert no raw-errors
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no errors but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS"

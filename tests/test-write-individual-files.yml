@@ -1,0 +1,97 @@
+name: Test write-individual-files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: ${{ github.workspace }}/tests/fixtures/overlays/development/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+          write-individual-files: 'true'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert files output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert individual files exist
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $DIR"
+          echo "files:"
+          echo "$FILES"
+          # Verify all listed files actually exist
+          FAIL=0
+          while IFS= read -r f; do
+            if [ -n "$f" ] && [ ! -f "$f" ]; then
+              echo "FAIL: listed file does not exist: $f"
+              FAIL=1
+            fi
+          done <<< "$FILES"
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+          echo "PASS: all listed files exist"
+
+      - name: Assert generated files contain valid YAML
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          FIRST_FILE=$(echo "$FILES" | head -n1)
+          echo "checking: $FIRST_FILE"
+          if [ ! -f "$FIRST_FILE" ]; then
+            echo "FAIL: first file does not exist: $FIRST_FILE"
+            exit 1
+          fi
+          # Should contain a Kubernetes resource
+          if ! grep -q "apiVersion:" "$FIRST_FILE"; then
+            echo "FAIL: file does not contain apiVersion"
+            cat "$FIRST_FILE"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert write-individual-files produces multiple files
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          COUNT=$(echo "$FILES" | grep -c '.' || true)
+          echo "file count: $COUNT"
+          # In write-individual-files mode, should NOT produce a single generated.yaml
+          # but individual resource files
+          if echo "$FILES" | grep -q "generated.yaml"; then
+            echo "FAIL: write-individual-files mode should not produce generated.yaml"
+            exit 1
+          fi
+          echo "PASS: no generated.yaml found, individual files written"

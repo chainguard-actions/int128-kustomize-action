@@ -1,0 +1,91 @@
+name: Test basic kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: ${{ github.workspace }}/tests/fixtures/overlays/development/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert directory exists
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "checking directory: $DIR"
+          if [ ! -d "$DIR" ]; then
+            echo "FAIL: output directory does not exist: $DIR"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert files output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated file exists
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files output: $FILES"
+          FIRST_FILE=$(echo "$FILES" | head -n1)
+          echo "first file: $FIRST_FILE"
+          if [ ! -f "$FIRST_FILE" ]; then
+            echo "FAIL: generated file does not exist: $FIRST_FILE"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated file contains Deployment
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          FIRST_FILE=$(echo "$FILES" | head -n1)
+          echo "checking content of: $FIRST_FILE"
+          if ! grep -q "kind: Deployment" "$FIRST_FILE"; then
+            echo "FAIL: generated file does not contain 'kind: Deployment'"
+            cat "$FIRST_FILE"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert no raw-errors
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no errors but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS"

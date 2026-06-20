@@ -1,6 +1,11 @@
 {
   "owner": "int128",
   "repo": "kustomize-action",
-  "version": "",
-  "url": "https://github.com/int128/kustomize-action"
+  "version": "v1.187.0",
+  "commit_sha": "7d86348ef91fbfa4f2c6a34545cff94ea4a7724a",
+  "url": "https://github.com/int128/kustomize-action",
+  "policy_sha": "d636be7e43ef829af6e853da6b3c7566db9f72fe",
+  "test_policy_sha": "843adf9e4b8f85d0c08b27b9d0b09dd094b54702",
+  "test_agent_version": "1",
+  "harden_agent_version": "1"
 }
