@@ -1,0 +1,72 @@
+name: Test parallel kustomize builds with glob pattern
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: |
+            tests/fixtures/overlays/dev/kustomization.yaml
+            tests/fixtures/overlays/prod/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          max-process: '3'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory=$ACTUAL"
+
+      - name: Assert multiple files were generated
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files output:"
+          echo "$FILES"
+          COUNT=$(echo "$FILES" | grep -c '\S' || true)
+          echo "File count: $COUNT"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 generated files (one per overlay), got $COUNT"
+            exit 1
+          fi
+          echo "PASS: $COUNT files generated"
+
+      - name: Assert dev overlay output exists
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          find "$DIR" -type f | sort
+          if ! find "$DIR" -path "*/dev/*" -type f | grep -q .; then
+            echo "FAIL: expected output file for dev overlay under $DIR"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert prod overlay output exists
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          if ! find "$DIR" -path "*/prod/*" -type f | grep -q .; then
+            echo "FAIL: expected output file for prod overlay under $DIR"
+            exit 1
+          fi
+          echo "PASS"

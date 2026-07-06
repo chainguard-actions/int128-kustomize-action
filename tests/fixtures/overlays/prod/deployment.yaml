@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echoserver-prod
+  labels:
+    app: echoserver
+    env: prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: echoserver
+  template:
+    metadata:
+      labels:
+        app: echoserver
+    spec:
+      containers:
+        - name: echoserver
+          image: ealen/echo-server:latest
+          ports:
+            - containerPort: 80

@@ -1,0 +1,72 @@
+name: Test basic kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/simple/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory=$ACTUAL"
+
+      - name: Assert files output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: files=$ACTUAL"
+
+      - name: Assert generated file exists on disk
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          find "$DIR" -type f
+          COUNT=$(find "$DIR" -type f | wc -l)
+          echo "File count: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one generated file in $DIR"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated YAML contains Deployment
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          FIRST_FILE=$(echo "$FILES" | head -1)
+          echo "Checking file: $FIRST_FILE"
+          if ! grep -q "kind: Deployment" "$FIRST_FILE"; then
+            echo "FAIL: expected 'kind: Deployment' in $FIRST_FILE"
+            cat "$FIRST_FILE"
+            exit 1
+          fi
+          echo "PASS"

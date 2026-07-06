@@ -1,0 +1,56 @@
+name: Test write-individual-files option
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/simple/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          write-individual-files: 'true'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory=$ACTUAL"
+
+      - name: Assert individual files were written (not a single generated.yaml)
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "Output directory: $DIR"
+          echo "Files output:"
+          echo "$FILES"
+          find "$DIR" -type f | sort
+          # With write-individual-files=true, files should NOT be named generated.yaml
+          if find "$DIR" -name "generated.yaml" | grep -q .; then
+            echo "FAIL: found generated.yaml — expected individual files instead"
+            exit 1
+          fi
+          COUNT=$(find "$DIR" -type f -name "*.yaml" | wc -l)
+          echo "Individual YAML file count: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one individual YAML file"
+            exit 1
+          fi
+          echo "PASS: $COUNT individual YAML file(s) found"

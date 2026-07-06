@@ -1,0 +1,46 @@
+name: Test extra-files option
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/simple/kustomization.yaml
+          extra-files: tests/fixtures/overlays/simple/metadata.yaml
+          base-directory: ${{ github.workspace }}
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory=$ACTUAL"
+
+      - name: Assert extra file was copied to output directory
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          find "$DIR" -type f | sort
+          if ! find "$DIR" -name "metadata.yaml" | grep -q .; then
+            echo "FAIL: expected metadata.yaml to be copied into output directory $DIR"
+            exit 1
+          fi
+          echo "PASS: metadata.yaml found in output directory"
