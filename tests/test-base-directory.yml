@@ -1,0 +1,72 @@
+name: Test custom base directory
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GITHUB_SERVER_URL: https://github.com
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: fixtures/basic/kustomization.yaml
+          base-directory: ${{ github.workspace }}/tests
+          retry-max-attempts: '0'
+          retry-wait-ms: '0'
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set"
+            exit 1
+          fi
+          echo "PASS: directory output is set"
+      - name: Assert generated.yaml exists in output
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "looking for generated.yaml under $DIR"
+          COUNT=$(find "$DIR" -name "generated.yaml" | wc -l)
+          echo "found $COUNT generated.yaml files"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one generated.yaml"
+            exit 1
+          fi
+          echo "PASS: generated.yaml found"
+      - name: Assert relative path uses base-directory
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          # When base-directory is set to tests/, the relative path should be fixtures/basic/...
+          # not tests/fixtures/basic/...
+          if echo "$FILES" | grep -q "fixtures/basic/generated.yaml"; then
+            echo "PASS: relative path is computed from base-directory"
+          else
+            echo "FAIL: expected path relative to base-directory (fixtures/basic/generated.yaml)"
+            echo "actual files: $FILES"
+            exit 1
+          fi
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no errors but got: $RAW_ERRORS"
+            exit 1
+          fi
+          echo "PASS: no errors"

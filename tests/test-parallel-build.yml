@@ -1,0 +1,73 @@
+name: Test parallel kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GITHUB_SERVER_URL: https://github.com
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/*/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          max-process: '2'
+          retry-max-attempts: '0'
+          retry-wait-ms: '0'
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set"
+            exit 1
+          fi
+          echo "PASS: directory output is set"
+      - name: Assert multiple generated files exist
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          COUNT=$(echo "$FILES" | grep -c "generated.yaml" || true)
+          echo "generated.yaml count: $COUNT"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 generated.yaml files (one per overlay), got $COUNT"
+            exit 1
+          fi
+          echo "PASS: multiple generated files found"
+      - name: Assert overlay output files exist in output directory
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "checking for overlay output files under $DIR"
+          echo "listing all yaml files:"
+          find "$DIR" -name "*.yaml" || true
+          COUNT=$(find "$DIR" -name "generated.yaml" | wc -l)
+          echo "found $COUNT generated.yaml files"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 generated.yaml files in output directory"
+            exit 1
+          fi
+          echo "PASS: overlay output files found"
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no errors but got: $RAW_ERRORS"
+            exit 1
+          fi
+          echo "PASS: no errors"

@@ -1,0 +1,72 @@
+name: Test extra files copy
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY: test-owner/test-repo
+      GITHUB_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      GITHUB_SERVER_URL: https://github.com
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/extra-files/kustomization.yaml
+          extra-files: tests/fixtures/extra-files/metadata.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+          retry-wait-ms: '0'
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set"
+            exit 1
+          fi
+          echo "PASS: directory output is set"
+      - name: Assert generated.yaml exists
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "looking for generated.yaml under $DIR"
+          COUNT=$(find "$DIR" -name "generated.yaml" | wc -l)
+          echo "found $COUNT generated.yaml files"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one generated.yaml"
+            exit 1
+          fi
+          echo "PASS: generated.yaml found"
+      - name: Assert extra file (metadata.yaml) was copied
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "looking for metadata.yaml under $DIR"
+          COUNT=$(find "$DIR" -name "metadata.yaml" | wc -l)
+          echo "found $COUNT metadata.yaml files"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "FAIL: expected metadata.yaml to be copied to output directory"
+            find "$DIR" -type f || true
+            exit 1
+          fi
+          echo "PASS: metadata.yaml was copied"
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no errors but got: $RAW_ERRORS"
+            exit 1
+          fi
+          echo "PASS: no errors"
