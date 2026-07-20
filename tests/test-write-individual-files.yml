@@ -1,4 +1,4 @@
-name: Test write-individual-files option
+name: Test write-individual-files
 on:
   workflow_dispatch:
 jobs:
@@ -9,18 +9,17 @@ jobs:
 
       - name: Install kustomize
         run: |
-          KUSTOMIZE_VERSION=5.4.3
-          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
-          tar -xzf kustomize.tar.gz
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/kustomize
           kustomize version
 
       - id: kustomize
         uses: .
         with:
-          kustomization: tests/fixtures/overlays/simple/kustomization.yaml
+          kustomization: tests/fixtures/simple-app/kustomization.yaml
           base-directory: ${{ github.workspace }}
           write-individual-files: 'true'
+          retry-max-attempts: '0'
 
       - name: Assert directory output is set
         env:
@@ -31,26 +30,48 @@ jobs:
             echo "FAIL: expected directory output to be non-empty"
             exit 1
           fi
-          echo "PASS: directory=$ACTUAL"
+          echo "PASS: directory output is set"
 
-      - name: Assert individual files were written (not a single generated.yaml)
+      - name: Assert individual files were written (no generated.yaml)
         env:
           DIR: ${{ steps.kustomize.outputs.directory }}
-          FILES: ${{ steps.kustomize.outputs.files }}
         run: |
-          echo "Output directory: $DIR"
-          echo "Files output:"
-          echo "$FILES"
+          echo "Listing output directory:"
           find "$DIR" -type f | sort
-          # With write-individual-files=true, files should NOT be named generated.yaml
-          if find "$DIR" -name "generated.yaml" | grep -q .; then
-            echo "FAIL: found generated.yaml — expected individual files instead"
+          # In write-individual-files mode, kustomize writes individual resource files
+          # (e.g. apps_v1_deployment_echoserver.yaml) instead of a single generated.yaml
+          GENERATED=$(find "$DIR" -name "generated.yaml" | wc -l)
+          INDIVIDUAL=$(find "$DIR" -type f -name "*.yaml" | wc -l)
+          echo "generated.yaml count: $GENERATED"
+          echo "individual yaml count: $INDIVIDUAL"
+          if [ "$GENERATED" -gt 0 ]; then
+            echo "FAIL: expected no generated.yaml in write-individual-files mode"
             exit 1
           fi
-          COUNT=$(find "$DIR" -type f -name "*.yaml" | wc -l)
-          echo "Individual YAML file count: $COUNT"
-          if [ "$COUNT" -lt 1 ]; then
-            echo "FAIL: expected at least one individual YAML file"
+          if [ "$INDIVIDUAL" -lt 1 ]; then
+            echo "FAIL: expected at least one individual yaml file"
             exit 1
           fi
-          echo "PASS: $COUNT individual YAML file(s) found"
+          echo "PASS: individual files written correctly"
+
+      - name: Assert files output is non-empty
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: files output is set"
+
+      - name: Assert no errors
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $ACTUAL"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected no errors but got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: no errors"

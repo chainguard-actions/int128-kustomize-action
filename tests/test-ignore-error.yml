@@ -1,4 +1,4 @@
-name: Test ignore-kustomize-error flag
+name: Test ignore-kustomize-error
 on:
   workflow_dispatch:
 jobs:
@@ -9,42 +9,47 @@ jobs:
 
       - name: Install kustomize
         run: |
-          KUSTOMIZE_VERSION=5.4.3
-          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
-          tar -xzf kustomize.tar.gz
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/kustomize
           kustomize version
 
       - id: kustomize
         uses: .
         with:
-          kustomization: tests/fixtures/overlays/broken/kustomization.yaml
+          kustomization: tests/fixtures/broken-app/kustomization.yaml
           base-directory: ${{ github.workspace }}
           ignore-kustomize-error: 'true'
           retry-max-attempts: '0'
 
-      - name: Assert step succeeded despite kustomize error
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
         run: |
-          echo "Step completed without failure — PASS"
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory output is set"
 
-      - name: Assert raw-errors output is populated
+      - name: Assert raw-errors output is non-empty (kustomize failed)
         env:
           ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
         run: |
           echo "raw-errors: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected raw-errors to be non-empty when kustomize fails"
+            echo "FAIL: expected raw-errors to be non-empty for broken kustomization"
             exit 1
           fi
-          echo "PASS: raw-errors is set"
+          echo "PASS: raw-errors captured as expected"
 
-      - name: Assert pretty-errors output is populated
+      - name: Assert pretty-errors output is non-empty
         env:
           ACTUAL: ${{ steps.kustomize.outputs.pretty-errors }}
         run: |
           echo "pretty-errors: $ACTUAL"
           if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected pretty-errors to be non-empty when kustomize fails"
+            echo "FAIL: expected pretty-errors to be non-empty for broken kustomization"
             exit 1
           fi
-          echo "PASS: pretty-errors is set"
+          echo "PASS: pretty-errors captured as expected"
