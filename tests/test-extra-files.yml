@@ -4,62 +4,68 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REPOSITORY: test-owner/test-repo
-      GITHUB_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      GITHUB_SERVER_URL: https://github.com
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Install kustomize
         run: |
           KUSTOMIZE_VERSION=5.4.3
-          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
-          tar -xzf kustomize.tar.gz
-          sudo mv kustomize /usr/local/bin/kustomize
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
           kustomize version
+
       - id: kustomize
         uses: .
         with:
-          kustomization: tests/fixtures/extra-files/kustomization.yaml
-          extra-files: tests/fixtures/extra-files/metadata.yaml
+          kustomization: tests/fixtures/with-extra/kustomization.yaml
+          extra-files: tests/fixtures/with-extra/metadata.yaml
           base-directory: ${{ github.workspace }}
           retry-max-attempts: '0'
           retry-wait-ms: '0'
+
       - name: Assert directory output is set
         env:
-          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
         run: |
-          echo "directory: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected directory output to be set"
+          echo "directory: $DIRECTORY"
+          if [ -z "$DIRECTORY" ]; then
+            echo "FAIL: expected directory output to be non-empty"
             exit 1
           fi
           echo "PASS: directory output is set"
-      - name: Assert generated.yaml exists
+
+      - name: Assert extra file was copied to output directory
         env:
-          DIR: ${{ steps.kustomize.outputs.directory }}
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
         run: |
-          echo "looking for generated.yaml under $DIR"
-          COUNT=$(find "$DIR" -name "generated.yaml" | wc -l)
-          echo "found $COUNT generated.yaml files"
-          if [ "$COUNT" -lt 1 ]; then
-            echo "FAIL: expected at least one generated.yaml"
-            exit 1
-          fi
-          echo "PASS: generated.yaml found"
-      - name: Assert extra file (metadata.yaml) was copied
-        env:
-          DIR: ${{ steps.kustomize.outputs.directory }}
-        run: |
-          echo "looking for metadata.yaml under $DIR"
-          COUNT=$(find "$DIR" -name "metadata.yaml" | wc -l)
-          echo "found $COUNT metadata.yaml files"
-          if [ "$COUNT" -lt 1 ]; then
+          echo "Listing output directory:"
+          find "$DIRECTORY" -type f
+          EXTRA_FILE=$(find "$DIRECTORY" -name "metadata.yaml" | head -1)
+          echo "Extra file: $EXTRA_FILE"
+          if [ -z "$EXTRA_FILE" ]; then
             echo "FAIL: expected metadata.yaml to be copied to output directory"
-            find "$DIR" -type f || true
             exit 1
           fi
-          echo "PASS: metadata.yaml was copied"
+          cat "$EXTRA_FILE"
+          if ! grep -q "environment: staging" "$EXTRA_FILE"; then
+            echo "FAIL: expected 'environment: staging' in copied metadata.yaml"
+            exit 1
+          fi
+          echo "PASS: extra file was copied to output directory"
+
+      - name: Assert generated manifest is also present
+        env:
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          GENERATED=$(find "$DIRECTORY" -name "generated.yaml" | head -1)
+          echo "Generated file: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated.yaml to be present in output directory"
+            exit 1
+          fi
+          echo "PASS: generated manifest is present"
+
       - name: Assert no errors
         env:
           RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}

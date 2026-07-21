@@ -1,0 +1,62 @@
+name: Test ignore kustomize errors
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/broken/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          ignore-kustomize-error: 'true'
+          retry-max-attempts: '0'
+          retry-wait-ms: '0'
+
+      - name: Assert action succeeded despite errors
+        run: |
+          echo "PASS: action completed without failing the step (ignore-kustomize-error=true)"
+
+      - name: Assert raw-errors output is set
+        env:
+          RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -z "$RAW_ERRORS" ]; then
+            echo "FAIL: expected raw-errors output to be non-empty (kustomization was broken)"
+            exit 1
+          fi
+          echo "PASS: raw-errors output is set"
+
+      - name: Assert pretty-errors output is set
+        env:
+          PRETTY_ERRORS: ${{ steps.kustomize.outputs.pretty-errors }}
+        run: |
+          echo "pretty-errors: $PRETTY_ERRORS"
+          if [ -z "$PRETTY_ERRORS" ]; then
+            echo "FAIL: expected pretty-errors output to be non-empty (kustomization was broken)"
+            exit 1
+          fi
+          echo "PASS: pretty-errors output is set"
+
+      - name: Assert directory output is still set
+        env:
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $DIRECTORY"
+          if [ -z "$DIRECTORY" ]; then
+            echo "FAIL: expected directory output to be set even when errors occurred"
+            exit 1
+          fi
+          echo "PASS: directory output is set"

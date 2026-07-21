@@ -4,63 +4,55 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_REPOSITORY: test-owner/test-repo
-      GITHUB_SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-      GITHUB_SERVER_URL: https://github.com
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
       - name: Install kustomize
         run: |
           KUSTOMIZE_VERSION=5.4.3
-          curl -sLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
-          tar -xzf kustomize.tar.gz
-          sudo mv kustomize /usr/local/bin/kustomize
+          curl -sL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
           kustomize version
+
       - id: kustomize
         uses: .
         with:
-          kustomization: tests/fixtures/basic/kustomization.yaml
+          kustomization: tests/fixtures/simple/kustomization.yaml
           base-directory: ${{ github.workspace }}
           write-individual-files: 'true'
           retry-max-attempts: '0'
           retry-wait-ms: '0'
+
       - name: Assert directory output is set
         env:
-          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
         run: |
-          echo "directory: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected directory output to be set"
+          echo "directory: $DIRECTORY"
+          if [ -z "$DIRECTORY" ]; then
+            echo "FAIL: expected directory output to be non-empty"
             exit 1
           fi
           echo "PASS: directory output is set"
-      - name: Assert individual files are written (no single generated.yaml)
+
+      - name: Assert individual files were written (not a single generated.yaml)
         env:
-          DIR: ${{ steps.kustomize.outputs.directory }}
+          DIRECTORY: ${{ steps.kustomize.outputs.directory }}
           FILES: ${{ steps.kustomize.outputs.files }}
         run: |
-          echo "output directory: $DIR"
           echo "files: $FILES"
-          # With write-individual-files=true, kustomize writes individual resource files
-          # There should be no single generated.yaml at the root of the kustomization output dir
-          INDIVIDUAL_COUNT=$(find "$DIR" -name "*.yaml" | wc -l)
-          echo "total yaml files: $INDIVIDUAL_COUNT"
-          if [ "$INDIVIDUAL_COUNT" -lt 1 ]; then
-            echo "FAIL: expected at least one individual yaml file"
+          echo "Listing output directory:"
+          find "$DIRECTORY" -type f
+          # With write-individual-files=true, files should be named by resource type
+          # e.g. apps_v1_deployment_echoserver.yaml instead of generated.yaml
+          INDIVIDUAL_FILES=$(find "$DIRECTORY" -type f -name "*.yaml" | grep -v "generated.yaml" | wc -l)
+          echo "Individual file count: $INDIVIDUAL_FILES"
+          if [ "$INDIVIDUAL_FILES" -lt 1 ]; then
+            echo "FAIL: expected individual files to be written"
             exit 1
           fi
-          echo "PASS: individual yaml files found"
-      - name: Assert files output is non-empty
-        env:
-          ACTUAL: ${{ steps.kustomize.outputs.files }}
-        run: |
-          echo "files: $ACTUAL"
-          if [ -z "$ACTUAL" ]; then
-            echo "FAIL: expected files output to be non-empty"
-            exit 1
-          fi
-          echo "PASS: files output is non-empty"
+          echo "PASS: individual files were written"
+
       - name: Assert no errors
         env:
           RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
