@@ -1,0 +1,49 @@
+name: Test ignore-kustomize-error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/invalid/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          ignore-kustomize-error: 'true'
+      - name: Assert directory output is set even on error
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "actual directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set even when kustomize errors"
+            exit 1
+          fi
+          echo "PASS: directory output is set to $ACTUAL"
+      - name: Assert raw-errors output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "actual raw-errors: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected raw-errors output to be set when kustomize fails"
+            exit 1
+          fi
+          echo "PASS: raw-errors output is set"
+      - name: Assert pretty-errors output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.pretty-errors }}
+        run: |
+          echo "actual pretty-errors: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected pretty-errors output to be set when kustomize fails"
+            exit 1
+          fi
+          echo "PASS: pretty-errors output is set"

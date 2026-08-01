@@ -1,0 +1,69 @@
+name: Test extra-files input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/extra-files/kustomization.yaml
+          extra-files: tests/fixtures/extra-files/metadata.yaml
+          base-directory: ${{ github.workspace }}
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "actual directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set"
+            exit 1
+          fi
+          echo "PASS: directory output is set to $ACTUAL"
+      - name: Assert generated.yaml exists
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Looking for generated.yaml under: $DIR"
+          GENERATED=$(find "$DIR" -name "generated.yaml" | head -1)
+          echo "Found: $GENERATED"
+          if [ -z "$GENERATED" ]; then
+            echo "FAIL: expected generated.yaml to exist in output directory"
+            exit 1
+          fi
+          echo "PASS: generated.yaml found at $GENERATED"
+      - name: Assert extra metadata.yaml was copied
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Looking for metadata.yaml under: $DIR"
+          METADATA=$(find "$DIR" -name "metadata.yaml" | head -1)
+          echo "Found: $METADATA"
+          if [ -z "$METADATA" ]; then
+            echo "FAIL: expected metadata.yaml to be copied to output directory"
+            exit 1
+          fi
+          echo "Content of $METADATA:"
+          cat "$METADATA"
+          if ! grep -q "environment: test" "$METADATA"; then
+            echo "FAIL: expected metadata.yaml to contain 'environment: test'"
+            exit 1
+          fi
+          echo "PASS: metadata.yaml found and has expected content"
+      - name: Assert files output includes both files
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "actual files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be set"
+            exit 1
+          fi
+          echo "PASS: files output is set"
