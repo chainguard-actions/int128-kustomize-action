@@ -1,0 +1,2 @@
+This is an extra file used for testing the extra-files input.
+environment: test

@@ -1,0 +1,70 @@
+name: Test basic kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: action
+        uses: .
+        with:
+          kustomization: ${{ github.workspace }}/tests/fixtures/basic/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "actual directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be set"
+            exit 1
+          fi
+          if [ ! -d "$ACTUAL" ]; then
+            echo "FAIL: expected directory '$ACTUAL' to exist"
+            exit 1
+          fi
+          echo "PASS: directory output is set and exists"
+
+      - name: Assert files output is set
+        env:
+          ACTUAL: ${{ steps.action.outputs.files }}
+        run: |
+          echo "actual files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: files output is set"
+
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.action.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no raw errors"
+            exit 1
+          fi
+          echo "PASS: no errors"
+
+      - name: Assert generated file exists
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "Looking for generated.yaml under: $DIR"
+          FOUND=$(find "$DIR" -name "generated.yaml" | head -1)
+          echo "Found: $FOUND"
+          if [ -z "$FOUND" ]; then
+            echo "FAIL: expected generated.yaml to exist in output directory"
+            exit 1
+          fi
+          echo "PASS: generated.yaml found"
