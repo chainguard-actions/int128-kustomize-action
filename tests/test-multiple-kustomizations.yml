@@ -1,0 +1,75 @@
+name: Test multiple kustomizations with glob
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/*/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+          ignore-kustomize-error: 'true'
+          max-process: '3'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: directory output is set"
+
+      - name: Assert files output contains multiple entries
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          # We have basic and individual fixtures that should succeed
+          # (broken fixture will fail but is ignored)
+          LINE_COUNT=$(echo "$ACTUAL" | grep -c "\.yaml" || true)
+          echo "yaml file lines: $LINE_COUNT"
+          if [ "$LINE_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 file in output, got $LINE_COUNT"
+            exit 1
+          fi
+          echo "PASS: files output lists $LINE_COUNT files"
+
+      - name: Assert output directory contains subdirectories for each kustomization
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          find "$DIR" -type f | sort
+          # basic and individual fixtures should produce output
+          BASIC_OUT=$(find "$DIR" -path "*/basic/generated.yaml" | head -1)
+          echo "basic output: $BASIC_OUT"
+          if [ -z "$BASIC_OUT" ]; then
+            echo "FAIL: expected basic/generated.yaml in output directory"
+            exit 1
+          fi
+          echo "PASS: basic kustomization output found"
+
+      - name: Assert raw-errors is set for broken kustomization
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected raw-errors to be non-empty (broken fixture should fail)"
+            exit 1
+          fi
+          echo "PASS: raw-errors is non-empty as expected"

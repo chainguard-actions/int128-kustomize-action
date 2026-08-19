@@ -1,4 +1,4 @@
-name: Test basic kustomize build
+name: Test kustomize-build-args input
 on:
   workflow_dispatch:
 jobs:
@@ -19,6 +19,7 @@ jobs:
           kustomization: tests/fixtures/basic/kustomization.yaml
           base-directory: ${{ github.workspace }}
           retry-max-attempts: '0'
+          kustomize-build-args: --load-restrictor LoadRestrictionsNone
 
       - name: Assert directory output is set
         env:

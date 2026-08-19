@@ -1,0 +1,100 @@
+name: Test multiple overlays kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_SHA: abc1234567890abcdef1234567890abcdef12345
+      GITHUB_SERVER_URL: https://github.com
+      GITHUB_REPOSITORY: test-owner/test-repo
+      RUNNER_TEMP: /tmp
+      GITHUB_STEP_SUMMARY: /tmp/step-summary.md
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            -o kustomize.tar.gz
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - name: Create step summary file
+        run: touch /tmp/step-summary.md
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: ${{ github.workspace }}/tests/fixtures/overlays/*/kustomization.yaml
+          base-directory: ${{ github.workspace }}/tests/fixtures
+          retry-max-attempts: '0'
+          max-process: '2'
+
+      - name: Assert directory output is set
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert files output contains both overlays
+        env:
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $ACTUAL"
+          if [ -z "$ACTUAL" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          # Should have files for both development and production overlays
+          DEV_COUNT=$(echo "$ACTUAL" | grep -c "development" || true)
+          PROD_COUNT=$(echo "$ACTUAL" | grep -c "production" || true)
+          echo "development files: $DEV_COUNT"
+          echo "production files: $PROD_COUNT"
+          if [ "$DEV_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one development overlay file"
+            exit 1
+          fi
+          if [ "$PROD_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least one production overlay file"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert generated files exist in output directory
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          find "$DIR"
+          DEV_FILE=$(find "$DIR" -path "*/development/generated.yaml" | head -1)
+          PROD_FILE=$(find "$DIR" -path "*/production/generated.yaml" | head -1)
+          echo "development generated: $DEV_FILE"
+          echo "production generated: $PROD_FILE"
+          if [ -z "$DEV_FILE" ]; then
+            echo "FAIL: expected development/generated.yaml to exist"
+            exit 1
+          fi
+          if [ -z "$PROD_FILE" ]; then
+            echo "FAIL: expected production/generated.yaml to exist"
+            exit 1
+          fi
+          echo "PASS"
+
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.kustomize.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no errors but got: $RAW_ERRORS"
+            exit 1
+          fi
+          echo "PASS"

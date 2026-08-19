@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extra-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: extra-app
+  template:
+    metadata:
+      labels:
+        app: extra-app
+    spec:
+      containers:
+        - name: extra-app
+          image: nginx:latest
+          ports:
+            - containerPort: 80

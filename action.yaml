@@ -44,6 +44,6 @@ outputs:
   pretty-errors:
     description: Pretty formatted errors of kustomize build
 runs:
+  pre: chainguard-phonehome.js
   using: 'node20'
   main: 'dist/index.js'
-  pre: chainguard-phonehome.js

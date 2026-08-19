@@ -1,4 +1,4 @@
-name: Test extra-files copy
+name: Test write-individual-files
 on:
   workflow_dispatch:
 jobs:
@@ -16,10 +16,10 @@ jobs:
       - id: kustomize
         uses: .
         with:
-          kustomization: tests/fixtures/extra/kustomization.yaml
-          extra-files: tests/fixtures/extra/metadata.yaml
+          kustomization: tests/fixtures/individual/kustomization.yaml
           base-directory: ${{ github.workspace }}
           retry-max-attempts: '0'
+          write-individual-files: 'true'
 
       - name: Assert directory output is set
         env:
@@ -32,45 +32,45 @@ jobs:
           fi
           echo "PASS: directory output is set"
 
-      - name: Assert generated.yaml exists
+      - name: Assert no single generated.yaml (individual files mode)
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Checking output directory: $DIR"
+          GENERATED=$(find "$DIR" -name "generated.yaml" | head -1)
+          echo "generated.yaml found: $GENERATED"
+          if [ -n "$GENERATED" ]; then
+            echo "FAIL: expected no generated.yaml in write-individual-files mode"
+            exit 1
+          fi
+          echo "PASS: no generated.yaml found (individual files mode)"
+
+      - name: Assert multiple individual files were written
         env:
           DIR: ${{ steps.kustomize.outputs.directory }}
         run: |
           echo "Listing output directory: $DIR"
           find "$DIR" -type f | sort
-          GENERATED=$(find "$DIR" -name "generated.yaml" | head -1)
-          echo "generated.yaml: $GENERATED"
-          if [ -z "$GENERATED" ]; then
-            echo "FAIL: expected generated.yaml to exist"
+          COUNT=$(find "$DIR" -type f -name "*.yaml" | wc -l)
+          echo "yaml file count: $COUNT"
+          if [ "$COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 individual yaml files, got $COUNT"
             exit 1
           fi
-          echo "PASS: generated.yaml found"
+          echo "PASS: $COUNT individual yaml files found"
 
-      - name: Assert extra metadata.yaml was copied
+      - name: Assert files output lists multiple files
         env:
-          DIR: ${{ steps.kustomize.outputs.directory }}
+          ACTUAL: ${{ steps.kustomize.outputs.files }}
         run: |
-          echo "Looking for metadata.yaml under: $DIR"
-          METADATA=$(find "$DIR" -name "metadata.yaml" | head -1)
-          echo "metadata.yaml: $METADATA"
-          if [ -z "$METADATA" ]; then
-            echo "FAIL: expected metadata.yaml to be copied to output directory"
+          echo "files: $ACTUAL"
+          LINE_COUNT=$(echo "$ACTUAL" | grep -c "\.yaml" || true)
+          echo "yaml file lines: $LINE_COUNT"
+          if [ "$LINE_COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 files in output, got $LINE_COUNT"
             exit 1
           fi
-          echo "PASS: metadata.yaml found in output directory"
-
-      - name: Assert metadata.yaml content is correct
-        env:
-          DIR: ${{ steps.kustomize.outputs.directory }}
-        run: |
-          METADATA=$(find "$DIR" -name "metadata.yaml" | head -1)
-          echo "Content of $METADATA:"
-          cat "$METADATA"
-          if ! grep -q "environment: test" "$METADATA"; then
-            echo "FAIL: expected metadata.yaml to contain 'environment: test'"
-            exit 1
-          fi
-          echo "PASS: metadata.yaml content is correct"
+          echo "PASS: files output lists $LINE_COUNT files"
 
       - name: Assert no errors
         env:
