@@ -1,0 +1,82 @@
+name: Test kustomize build with overlay
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          OS=linux
+          ARCH=amd64
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${OS}_${ARCH}.tar.gz" \
+            -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/development/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+
+      - name: Assert directory output is set
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "directory: $DIR"
+          if [ -z "$DIR" ]; then
+            echo "FAIL: expected 'directory' output to be non-empty"
+            exit 1
+          fi
+          if [ ! -d "$DIR" ]; then
+            echo "FAIL: expected 'directory' output to be an existing directory, got: $DIR"
+            exit 1
+          fi
+          echo "PASS: directory output is set and exists"
+
+      - name: Assert files output is set
+        env:
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          if [ -z "$FILES" ]; then
+            echo "FAIL: expected 'files' output to be non-empty"
+            exit 1
+          fi
+          echo "PASS: files output is set"
+
+      - name: Assert no errors
+        env:
+          RAW_ERRORS: ${{ steps.action.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -n "$RAW_ERRORS" ]; then
+            echo "FAIL: expected no raw errors but got: $RAW_ERRORS"
+            exit 1
+          fi
+          echo "PASS: no errors"
+
+      - name: Assert output contains namespace from overlay
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          ls -la "$DIR"
+          OUTPUT_FILE=$(find "$DIR" -name "*.yaml" | head -1)
+          if [ -z "$OUTPUT_FILE" ]; then
+            echo "FAIL: no yaml output file found in $DIR"
+            exit 1
+          fi
+          echo "Output file: $OUTPUT_FILE"
+          cat "$OUTPUT_FILE"
+          # The overlay sets namespace: development
+          if ! grep -q "namespace: development" "$OUTPUT_FILE"; then
+            echo "FAIL: output does not contain 'namespace: development' from overlay"
+            exit 1
+          fi
+          echo "PASS: output contains namespace from overlay"

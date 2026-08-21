@@ -1,0 +1,66 @@
+name: Test kustomize build with glob pattern
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          OS=linux
+          ARCH=amd64
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${OS}_${ARCH}.tar.gz" \
+            -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/*/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          ignore-kustomize-error: 'true'
+
+      - name: Assert directory output is set
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "directory: $DIR"
+          if [ -z "$DIR" ]; then
+            echo "FAIL: expected 'directory' output to be non-empty"
+            exit 1
+          fi
+          if [ ! -d "$DIR" ]; then
+            echo "FAIL: expected 'directory' output to be an existing directory, got: $DIR"
+            exit 1
+          fi
+          echo "PASS: directory output is set and exists"
+
+      - name: Assert files output is set (at least one kustomization built)
+        env:
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          if [ -z "$FILES" ]; then
+            echo "FAIL: expected 'files' output to be non-empty (at least base kustomization should build)"
+            exit 1
+          fi
+          echo "PASS: files output is set"
+
+      - name: Assert output directory contains yaml files
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+        run: |
+          echo "Listing output directory: $DIR"
+          ls -la "$DIR"
+          OUTPUT_COUNT=$(find "$DIR" -name "*.yaml" | wc -l)
+          echo "Output yaml file count: $OUTPUT_COUNT"
+          if [ "$OUTPUT_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 yaml output file in $DIR"
+            exit 1
+          fi
+          echo "PASS: found $OUTPUT_COUNT yaml output file(s)"

@@ -1,0 +1,53 @@
+name: Test kustomize build with ignore-kustomize-error
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          KUSTOMIZE_VERSION=5.4.3
+          OS=linux
+          ARCH=amd64
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_${OS}_${ARCH}.tar.gz" \
+            -o /tmp/kustomize.tar.gz
+          tar -xzf /tmp/kustomize.tar.gz -C /tmp
+          sudo mv /tmp/kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/invalid/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          ignore-kustomize-error: 'true'
+
+      - name: Assert action succeeded despite kustomize error
+        run: |
+          echo "Action completed without failing the workflow step"
+          echo "PASS: ignore-kustomize-error=true allowed the action to succeed"
+
+      - name: Assert raw-errors output is set (kustomize failed)
+        env:
+          RAW_ERRORS: ${{ steps.action.outputs.raw-errors }}
+        run: |
+          echo "raw-errors: $RAW_ERRORS"
+          if [ -z "$RAW_ERRORS" ]; then
+            echo "FAIL: expected 'raw-errors' output to be non-empty since kustomization is invalid"
+            exit 1
+          fi
+          echo "PASS: raw-errors output is set as expected for invalid kustomization"
+
+      - name: Assert pretty-errors output is set
+        env:
+          PRETTY_ERRORS: ${{ steps.action.outputs.pretty-errors }}
+        run: |
+          echo "pretty-errors: $PRETTY_ERRORS"
+          if [ -z "$PRETTY_ERRORS" ]; then
+            echo "FAIL: expected 'pretty-errors' output to be non-empty since kustomization is invalid"
+            exit 1
+          fi
+          echo "PASS: pretty-errors output is set as expected for invalid kustomization"
