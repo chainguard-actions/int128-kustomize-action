@@ -1,0 +1,1 @@
+This is an extra file used to test the extra-files input of the kustomize action.
