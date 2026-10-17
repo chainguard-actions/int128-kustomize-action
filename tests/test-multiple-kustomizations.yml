@@ -1,0 +1,75 @@
+name: Test multiple kustomizations with glob pattern
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/kustomize
+          kustomize version
+
+      - id: kustomize
+        uses: .
+        with:
+          kustomization: tests/fixtures/overlays/*/kustomization.yaml
+          base-directory: ${{ github.workspace }}
+          retry-max-attempts: '0'
+          max-process: '2'
+
+      - name: Assert directory output is set
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "directory: $DIR"
+          if [ -z "$DIR" ]; then
+            echo "FAIL: expected directory output to be non-empty"
+            exit 1
+          fi
+          if [ ! -d "$DIR" ]; then
+            echo "FAIL: directory '$DIR' does not exist"
+            exit 1
+          fi
+          echo "PASS: directory output is set and exists"
+
+      - name: Assert files output contains both overlays
+        env:
+          FILES: ${{ steps.kustomize.outputs.files }}
+        run: |
+          echo "files: $FILES"
+          if [ -z "$FILES" ]; then
+            echo "FAIL: expected files output to be non-empty"
+            exit 1
+          fi
+          # Count the number of generated files (one per overlay)
+          FILE_COUNT=$(echo "$FILES" | grep -c "generated.yaml" || true)
+          echo "file count: $FILE_COUNT"
+          if [ "$FILE_COUNT" -lt 2 ]; then
+            echo "FAIL: expected at least 2 generated files (one per overlay), got $FILE_COUNT"
+            exit 1
+          fi
+          echo "PASS: files output contains $FILE_COUNT generated files"
+
+      - name: Assert both overlay outputs exist
+        env:
+          DIR: ${{ steps.kustomize.outputs.directory }}
+        run: |
+          echo "Listing output directory:"
+          find "$DIR" -type f
+          DEV_FILE=$(find "$DIR" -path "*/development/generated.yaml" | head -1)
+          PROD_FILE=$(find "$DIR" -path "*/production/generated.yaml" | head -1)
+          if [ -z "$DEV_FILE" ]; then
+            echo "FAIL: expected development/generated.yaml to exist"
+            exit 1
+          fi
+          if [ -z "$PROD_FILE" ]; then
+            echo "FAIL: expected production/generated.yaml to exist"
+            exit 1
+          fi
+          echo "PASS: both overlay outputs exist"
+          echo "  dev: $DEV_FILE"
+          echo "  prod: $PROD_FILE"
