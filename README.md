@@ -6,19 +6,19 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 ## Versions
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v1.182.0 | [`v1.182.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.182.0) | [`ca5bbbc`](https://github.com/int128/kustomize-action/commit/ca5bbbc4573c3de37ea93b131f8b14e241f80925) |
-| v1.187.0 | [`v1.187.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.187.0) | [`7d86348`](https://github.com/int128/kustomize-action/commit/7d86348ef91fbfa4f2c6a34545cff94ea4a7724a) |
-| v1.188.0 | [`v1.188.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.188.0) | [`6cb04b0`](https://github.com/int128/kustomize-action/commit/6cb04b0da49fce7201ff08e086072f33475d376e) |
-| v1.189.0 | [`v1.189.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.189.0) | [`8130cef`](https://github.com/int128/kustomize-action/commit/8130cef380ab3b0ef73b09592b442466100c01ee) |
-| v1.190.0 | [`v1.190.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.190.0) | [`7c5df99`](https://github.com/int128/kustomize-action/commit/7c5df9980fe7984d47f599f799f92b15657dea9e) |
-| v1.191.0 | [`v1.191.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.191.0) | [`e5247fe`](https://github.com/int128/kustomize-action/commit/e5247fe93db23907dc8ef8ab8ed60e51dce38e35) |
-| v1.192.0 | [`v1.192.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.192.0) | [`bc133f1`](https://github.com/int128/kustomize-action/commit/bc133f1063abd88529fecac011ece4c5536f0e83) |
-| v1.193.0 | [`v1.193.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.193.0) | [`02ab393`](https://github.com/int128/kustomize-action/commit/02ab393c5684c721372de980125d3e98f48f127f) |
-| v1.194.0 | [`v1.194.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.194.0) | [`4dff2fd`](https://github.com/int128/kustomize-action/commit/4dff2fdd8526459cd7425a75c65dbc6b459e14fc) |
-| v1.195.0 | [`v1.195.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.195.0) | [`4fbeca9`](https://github.com/int128/kustomize-action/commit/4fbeca93d7072507f0c6d4529025d17a5d209551) |
-| v1.196.0 | [`v1.196.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.196.0) | [`19a766f`](https://github.com/int128/kustomize-action/commit/19a766fc2f43be39d1436d59555033be8aca07db) |
+| Version | Tag | Upstream commit | Hardening report |
+|---------|-----|-----------------|------------------|
+| v1.182.0 | [`v1.182.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.182.0) | [`ca5bbbc`](https://github.com/int128/kustomize-action/commit/ca5bbbc4573c3de37ea93b131f8b14e241f80925) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.182.0/HARDENING.md) |
+| v1.187.0 | [`v1.187.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.187.0) | [`7d86348`](https://github.com/int128/kustomize-action/commit/7d86348ef91fbfa4f2c6a34545cff94ea4a7724a) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.187.0/HARDENING.md) |
+| v1.188.0 | [`v1.188.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.188.0) | [`6cb04b0`](https://github.com/int128/kustomize-action/commit/6cb04b0da49fce7201ff08e086072f33475d376e) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.188.0/HARDENING.md) |
+| v1.189.0 | [`v1.189.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.189.0) | [`8130cef`](https://github.com/int128/kustomize-action/commit/8130cef380ab3b0ef73b09592b442466100c01ee) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.189.0/HARDENING.md) |
+| v1.190.0 | [`v1.190.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.190.0) | [`7c5df99`](https://github.com/int128/kustomize-action/commit/7c5df9980fe7984d47f599f799f92b15657dea9e) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.190.0/HARDENING.md) |
+| v1.191.0 | [`v1.191.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.191.0) | [`e5247fe`](https://github.com/int128/kustomize-action/commit/e5247fe93db23907dc8ef8ab8ed60e51dce38e35) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.191.0/HARDENING.md) |
+| v1.192.0 | [`v1.192.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.192.0) | [`bc133f1`](https://github.com/int128/kustomize-action/commit/bc133f1063abd88529fecac011ece4c5536f0e83) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.192.0/HARDENING.md) |
+| v1.193.0 | [`v1.193.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.193.0) | [`02ab393`](https://github.com/int128/kustomize-action/commit/02ab393c5684c721372de980125d3e98f48f127f) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.193.0/HARDENING.md) |
+| v1.194.0 | [`v1.194.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.194.0) | [`4dff2fd`](https://github.com/int128/kustomize-action/commit/4dff2fdd8526459cd7425a75c65dbc6b459e14fc) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.194.0/HARDENING.md) |
+| v1.195.0 | [`v1.195.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.195.0) | [`4fbeca9`](https://github.com/int128/kustomize-action/commit/4fbeca93d7072507f0c6d4529025d17a5d209551) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.195.0/HARDENING.md) |
+| v1.196.0 | [`v1.196.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.196.0) | [`19a766f`](https://github.com/int128/kustomize-action/commit/19a766fc2f43be39d1436d59555033be8aca07db) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.196.0/HARDENING.md) |
 
 ## Privacy
 
