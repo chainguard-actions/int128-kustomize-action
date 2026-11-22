@@ -19,6 +19,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 | v1.194.0 | [`v1.194.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.194.0) | [`4dff2fd`](https://github.com/int128/kustomize-action/commit/4dff2fdd8526459cd7425a75c65dbc6b459e14fc) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.194.0/HARDENING.md) |
 | v1.195.0 | [`v1.195.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.195.0) | [`4fbeca9`](https://github.com/int128/kustomize-action/commit/4fbeca93d7072507f0c6d4529025d17a5d209551) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.195.0/HARDENING.md) |
 | v1.196.0 | [`v1.196.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.196.0) | [`19a766f`](https://github.com/int128/kustomize-action/commit/19a766fc2f43be39d1436d59555033be8aca07db) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.196.0/HARDENING.md) |
+| v1.197.0 | [`v1.197.0`](https://github.com/chainguard-actions/int128-kustomize-action/tree/v1.197.0) | [`0761998`](https://github.com/int128/kustomize-action/commit/07619988ceb21beb5a03d6cb1cacf414a51e8594) | [`HARDENING.md`](https://github.com/chainguard-actions/int128-kustomize-action/blob/v1.197.0/HARDENING.md) |
 
 ## Privacy
 
