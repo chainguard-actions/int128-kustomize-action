@@ -1,0 +1,33 @@
+name: Test base-directory
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: bash tests/fixtures/install-kustomize.sh
+      - id: action
+        uses: .
+        with:
+          base-directory: ${{ github.workspace }}/tests/fixtures/kustomize
+          kustomization: ok/*/kustomization.yaml
+          max-process: "1"
+          retry-max-attempts: "0"
+      - name: Assert paths relative to base-directory
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "directory: $DIR"
+          echo "files:"; echo "$FILES"
+          for app in app1 app2; do
+            if [ ! -f "$DIR/ok/$app/generated.yaml" ]; then
+              echo "FAIL: $DIR/ok/$app/generated.yaml not found"; exit 1
+            fi
+          done
+          if [ -e "$DIR/tests" ]; then
+            echo "FAIL: output should be relative to base-directory, found $DIR/tests"; exit 1
+          fi
+          echo "PASS"

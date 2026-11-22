@@ -1,0 +1,40 @@
+name: Test basic kustomize build
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: bash tests/fixtures/install-kustomize.sh
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/kustomize/ok/*/kustomization.yaml
+          retry-max-attempts: "0"
+      - name: Assert outputs
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+          FILES: ${{ steps.action.outputs.files }}
+          RAW_ERRORS: ${{ steps.action.outputs.raw-errors }}
+        run: |
+          echo "directory: $DIR"
+          echo "files:"; echo "$FILES"
+          if [ -z "$DIR" ] || [ ! -d "$DIR" ]; then
+            echo "FAIL: directory output missing or not a directory"; exit 1
+          fi
+          for app in app1 app2; do
+            f="$DIR/tests/fixtures/kustomize/ok/$app/generated.yaml"
+            if [ ! -f "$f" ]; then echo "FAIL: $f not found"; exit 1; fi
+            if ! echo "$FILES" | grep -q "ok/$app/generated.yaml"; then
+              echo "FAIL: files output missing $app"; exit 1
+            fi
+          done
+          grep -q "name: app1-config" "$DIR/tests/fixtures/kustomize/ok/app1/generated.yaml" || { echo "FAIL: app1 content"; exit 1; }
+          grep -q "name: app2-config" "$DIR/tests/fixtures/kustomize/ok/app2/generated.yaml" || { echo "FAIL: app2 configmap"; exit 1; }
+          grep -q "name: app2-svc" "$DIR/tests/fixtures/kustomize/ok/app2/generated.yaml" || { echo "FAIL: app2 service"; exit 1; }
+          COUNT="$(echo "$FILES" | grep -c . || true)"
+          if [ "$COUNT" != "2" ]; then echo "FAIL: expected 2 files, got $COUNT"; exit 1; fi
+          if [ -n "$RAW_ERRORS" ]; then echo "FAIL: unexpected raw-errors: $RAW_ERRORS"; exit 1; fi
+          echo "PASS"

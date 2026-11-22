@@ -1,0 +1,29 @@
+name: Test extra-files copy
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: bash tests/fixtures/install-kustomize.sh
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/kustomize/ok/app1/kustomization.yaml
+          extra-files: tests/fixtures/kustomize/extra/*.txt
+          retry-max-attempts: "0"
+      - name: Assert extra file copied
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "directory: $DIR"
+          echo "files:"; echo "$FILES"
+          EXTRA="$DIR/tests/fixtures/kustomize/extra/notes.txt"
+          if [ ! -f "$EXTRA" ]; then echo "FAIL: extra file not copied"; exit 1; fi
+          grep -q "extra-file-marker" "$EXTRA" || { echo "FAIL: extra file content mismatch"; exit 1; }
+          echo "$FILES" | grep -q "extra/notes.txt" || { echo "FAIL: files output missing extra file"; exit 1; }
+          echo "$FILES" | grep -q "ok/app1/generated.yaml" || { echo "FAIL: files output missing generated.yaml"; exit 1; }
+          echo "PASS"

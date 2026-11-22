@@ -1,0 +1,29 @@
+name: Test kustomize-build-args
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: bash tests/fixtures/install-kustomize.sh
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/kustomize/restricted/kustomization.yaml
+          kustomize-build-args: |
+            --load-restrictor=LoadRestrictionsNone
+          retry-max-attempts: "0"
+      - name: Assert build args applied
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+          RAW_ERRORS: ${{ steps.action.outputs.raw-errors }}
+        run: |
+          echo "directory: $DIR"
+          F="$DIR/tests/fixtures/kustomize/restricted/generated.yaml"
+          if [ ! -f "$F" ]; then echo "FAIL: $F not found"; exit 1; fi
+          cat "$F"
+          grep -q "name: shared-config" "$F" || { echo "FAIL: shared configmap not included"; exit 1; }
+          if [ -n "$RAW_ERRORS" ]; then echo "FAIL: unexpected errors: $RAW_ERRORS"; exit 1; fi
+          echo "PASS"

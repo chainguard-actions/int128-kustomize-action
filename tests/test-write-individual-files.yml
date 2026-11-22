@@ -1,0 +1,36 @@
+name: Test write-individual-files
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install kustomize
+        run: bash tests/fixtures/install-kustomize.sh
+      - id: action
+        uses: .
+        with:
+          kustomization: tests/fixtures/kustomize/ok/app2/kustomization.yaml
+          write-individual-files: "true"
+          retry-max-attempts: "0"
+      - name: Assert individual files written
+        env:
+          DIR: ${{ steps.action.outputs.directory }}
+          FILES: ${{ steps.action.outputs.files }}
+        run: |
+          echo "directory: $DIR"
+          echo "files:"; echo "$FILES"
+          OUT="$DIR/tests/fixtures/kustomize/ok/app2"
+          ls -la "$OUT" || { echo "FAIL: output dir missing"; exit 1; }
+          if [ -f "$OUT/generated.yaml" ]; then
+            echo "FAIL: generated.yaml should not exist in individual mode"; exit 1
+          fi
+          COUNT="$(find "$OUT" -type f -name '*.yaml' | wc -l)"
+          echo "yaml count: $COUNT"
+          if [ "$COUNT" -ne 2 ]; then echo "FAIL: expected 2 individual files"; exit 1; fi
+          grep -rq "name: app2-config" "$OUT" || { echo "FAIL: configmap file missing"; exit 1; }
+          grep -rq "name: app2-svc" "$OUT" || { echo "FAIL: service file missing"; exit 1; }
+          FCOUNT="$(echo "$FILES" | grep -c . || true)"
+          if [ "$FCOUNT" != "2" ]; then echo "FAIL: files output expected 2 entries, got $FCOUNT"; exit 1; fi
+          echo "PASS"
